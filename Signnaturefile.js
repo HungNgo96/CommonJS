@@ -2,10 +2,10 @@
 export const  getBLOBFileHeader = (url, blob, callback) => {
     var fileReader = new FileReader();
     fileReader.onloadend = function(e) {
-      var arr = (new Uint8Array(e.target.result)).subarray(0, 4);
+      var arr = (new Uint8Array(e.target.result)).subarray(0, 4);//decimal
       var header = "";
       for (var i = 0; i < arr.length; i++) {
-        header += arr[i].toString(16);
+        header +=', 0x' +arr[i].toString(16);//to hexadecimal
       }
       callback(url, header);
     };

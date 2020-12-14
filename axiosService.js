@@ -2,6 +2,18 @@ import axios from 'axios';
 import * as localStoragee from './../commons/ExpiryLocalStorage';
 import * as Enum from './../constants/Enum';
 import * as toast from '../helpers/toastHelper';
+
+const CancelToken = axios.CancelToken;
+const source = CancelToken.source();
+source.cancel('Operation canceled by the user11122.');//show erros
+axios.get('https://api.github.com/users/barbier',{
+ //cancelToken: source.token 
+  } )
+  .then(function(response){
+    console.log(response.data); // ex.: { user: 'Your User'}
+    console.log(response.status); // ex.: 200
+  });  
+  
 class AxiosService {
   constructor() {
     // axios.defaults.withCredentials = true;
