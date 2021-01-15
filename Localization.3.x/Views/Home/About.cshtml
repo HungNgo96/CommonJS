@@ -1,0 +1,18 @@
+﻿@using Microsoft.AspNetCore.Mvc.Localization
+@using Localization.Services
+@using Microsoft.Extensions.Localization
+
+@inject IViewLocalizer Localizer
+@inject IHtmlLocalizer<SharedResource> SharedHtmlLocalizer
+@inject IStringLocalizer<SharedResource> SharedStringLocalizer
+
+
+@{
+    ViewData["Title"] = Localizer["About"];
+}
+<h2>@ViewData["Title"].</h2>
+<h3>@ViewData["Message"]</h3>
+
+<p>@Localizer["Use this area to provide additional information."]</p>
+<p>@SharedHtmlLocalizer["About"] with HTML raw</p>
+<p>@SharedStringLocalizer["About"] without HTML raw</p>
