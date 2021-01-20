@@ -1,0 +1,108 @@
+1/ Envrironment variables:
+# chú thích trong file "Note_appsetting_BackEnd.xlsx"
+{
+  "KeyVault": {
+    "Vault": "aia-demo",
+    "ClientId": "a5a6102e-4ab5-4641-bd58-baeb0a82afb4",
+    "ClientSecret": "B9kB4hegB-_76m5X5648_.plzy67.8m6G6"
+  },
+  "Serilog": {
+    "Using": [ "Serilog.Sinks.Console", "Serilog.Sinks.File" ],
+    "MinimumLevel": {
+      "Default": "Debug",
+      "Override": {
+        "Microsoft": "Fatal",
+        "System": "Fatal"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "Debug"
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "/apps/logs/icon/backend/icon-backend.log",
+          "rollingInterval": "Day",
+          "retainedFileCountLimit": "7",
+          "rollOnFileSizeLimit": "true",
+          "shared": "true",
+          "flushToDiskInterval": "00:00:01"
+        }
+      }
+    ]
+  },
+  "AllowedHosts": "*",
+  "Tokens": {
+    "Key": "9F8MNCBkG3yc7zj04c",
+    "Issuer": "localhost",
+    "TokenExpired": 15
+  },
+  "Links": {
+    "WebsiteClient": "https://aia.byte.com.vn",
+    "Website": "https://localhost:5200/icon",
+    "API": "https://localhost:5100/icon"
+  },
+  "Subdirectory": "/icon",
+  "Urls": "https://localhost:5200",
+  "ClockSkewTime": 5,
+  "EmailTemplate": {
+    "Logo": "http://net.anhduong.us/icon/vendor/assets/images/logo.png",
+    "Url": "http://net.anhduong.us/icon/",
+    "CopyRight": "@2020"
+  },
+  "RedisCache": {
+   "ConnectionString": "localhost:6379,password=Abc@@123,ssl=false,abortConnect=False"
+  },
+  "AzureStorage": {
+    "ConnectionString": "DefaultEndpointsProtocol=https;AccountName=cifree;AccountKey=9YTFS1ZM2c8jykP/HHIWooue6oHlqGRTy8gE/2MkZfpNjM0fPK7MKCyN17k+7r4mmCZ6+xvQMiSa7kJY5ztxMg==;EndpointSuffix=core.windows.net",
+    "AccountName": "cifree",
+    "AccountKey": "9YTFS1ZM2c8jykP/HHIWooue6oHlqGRTy8gE/2MkZfpNjM0fPK7MKCyN17k+7r4mmCZ6+xvQMiSa7kJY5ztxMg==",
+    "Container": "ci-admin",
+    "PrivateContainer": "ci-private",
+    "TimeOut": 60,
+    "BodyLengthLimit": 1024
+  },
+  "TimeLockOut": "60",
+  "ReCaptcha": {
+    "SiteKey": "6LcpmMsZAAAAAAved2uqBeaNzQ4_YHgqgQ9t-6p7",
+    "SecrectKey": "6LcpmMsZAAAAAOYv_5LQoGF0QgG4OnNjzmmh_D0s"
+  },
+  "IpRateLimiting": {
+    "EnableEndpointRateLimiting": true,
+    "StackBlockedRequests": false,
+    "RealIpHeader": "X-Real-IP",
+    "ClientIdHeader": "X-ClientId",
+    "HttpStatusCode": 429,
+    "GeneralRules": [
+      {
+        "Endpoint": "post:/*/forgot-password",
+        "Period": "15m",
+        "Limit": 10
+      },
+      {
+        "Endpoint": "post:/forgot-password",
+        "Period": "15m",
+        "Limit": 10
+      }
+    ]
+  },
+  "Cache": {
+    "StaticCacheDuration": 14400,
+    "DistributedCache_TimeOut": 1800
+  },  
+}
+
+2/ Các lệnh cần chạy sau khi đã cập nhật môi trường:
+# vào thư mục NetCoreReact
+- RUN cd ./NetCoreReact
+
+# run dotnet build project
+- RUN dotnet publish  "IconBE.csproj"  -c Release -o ./build  
+
+3/ serving static source từ thư mục ./build
+# vào thư mục build.
+- RUN cd ./build
+
+# chạy lệnh run project.
+- RUN dotnet IconBE.dll

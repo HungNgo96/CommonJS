@@ -1,0 +1,22 @@
+1/ Envrironment variables:
+
+#backend api, ex: REACT_APP_API = https://localhost:5100/icon/
+- REACT_APP_API = {domain_API}
+
+#subdirectory frontend, ex: REACT_APP_URL_SUBDIRECTORY = /icon
+- REACT_APP_URL_SUBDIRECTORY = {subdirectory}
+
+#key FB api, ex: REACT_APP_APP_KEY = 651494512375083
+- REACT_APP_APP_KEY = {app_key_api}
+
+#subdirectory folder css, js, ex:PUBLIC_URL= /icon
+- PUBLIC_URL= {subdirectory}
+
+#Expiry login (7200 second)
+REACT_APP_EXPIRY_LOGIN= 7200
+
+2/ Các lệnh cần chạy sau khi đã cập nhật môi trường:
+- npm install
+- npm run build
+
+3/ serving static source từ thư mục ./build
