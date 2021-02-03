@@ -1,0 +1,26 @@
+Azure SQL
+
+1.	Tạo Azure SQL
+- Tiến hành vào https://portal.azure.com/
+- Đăng nhập bằng TK được cấp.
+- Vào module SQL Database để tạo database để sử dụng.
+- Lấy connection để kết nối .Net Core hoặc SQL tool để quản lý dữ liệu.
+
+Tham khảo:
+https://docs.microsoft.com/en-us/azure/azure-sql/database/single-database-create-quickstart?tabs=azure-portal
+2.	Kết nối SQL trên .Net Core
+Appsetting.json
+
+"ConnectionStrings": {
+    "MyConnection": "Server=103.77.166.113;Database=aia_robo_db;User Id=aia_robo_login;Password=9p4D6pvBVKh4;"
+  },
+
+Tương tự như cấu hình SQL thông thường, sử dụng connection string Azure SQL cung cấp là có thể kết nối.
+
+Startup.cs
+Trong
+public void ConfigureServices(IServiceCollection services)
+{
+	services.AddDbContext<Icon_dbContext>(
+               options => options.UseSqlServer(Configuration.GetConnectionString("MyConnection")));
+}

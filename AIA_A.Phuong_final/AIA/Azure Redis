@@ -1,0 +1,72 @@
+Cấu hình Azure Redis không khác gì so với sử dụng một sever redis thông thường.
+
+Redis có 2 loại là Redis thông thường và Redis Cluster.
+Redis Cluster phân tán ra nhiều máy chủ redis, kết nối thông qua một IP, mà IP này là một proxy chia tải phù hợp. Muốn sử dụng Redis Cluster phải sử dụng Microsoft.Extensions.Caching.StackExchangeRedis để sử dụng.
+
+## Cấu hình .net core
+Startup.cs
+
+public void ConfigureServices(IServiceCollection services)
+{
+	string redisCache = Configuration.GetValue<string>("RedisCache:ConnectionString");
+    if(!string.IsNullOrEmpty(redisCache))
+    {
+        services.AddStackExchangeRedisCache(option =>
+        {
+            option.Configuration = redisCache;
+            //option.InstanceName = "SampleInstance";
+        });
+    }
+}
+
+appsetting.json
+
+"RedisCache": {
+	"ConnectionString": "localhost:6379,password=Abc@@123,ssl=false,abortConnect=False"
+},
+
+Cấu hình như trên là có thể sử dụng Redis như một session lưu trữ phiên.
+
+## Cấu hình cache cho data trên BE
+
+#region Campaign
+/// <summary>
+/// Find
+/// </summary>
+[HttpGet("campaign/{id}")]
+public async Task<IActionResult> FindCampaign(int id)
+{
+    try
+    {
+        var key = "publicCampaign_" + id;
+        bool checkCache = await _cache.CheckExistsFromCache(key);
+        if (checkCache)
+        {
+            var value = await _cache.GetFromCache(key);
+            var result = JsonConvert.DeserializeObject<CampaignViewModel>(value);
+
+            return Json(result);
+        }
+        else
+        {
+            var value = await this._campaignRepositories.Find(id);
+            if(value != null)
+            {
+                await _cache.SetFromCache(key, value);
+
+                return Json(value);
+            }
+            else
+            {
+                return NotFound();
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        this._logger.LogError(ex.Message);
+        return NotFound();
+    }
+}
+
+Ở ví dụ trên lấy thông tin Campaign và lưu trữ vào cache. Và lấy ra để sử dụng

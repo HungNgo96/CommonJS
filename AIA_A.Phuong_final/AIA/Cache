@@ -1,0 +1,33 @@
+Hiện tại trừ Redis cache chỉ áp dụng 1 vài hàm, hệ thống còn sử dụng cache từ:
+1. Cloudflare do cấu hình sever.
+2. Cache file tĩnh từ trong config.
+
+## Cache file tĩnh từ config BE
+startup.cs
+
+public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IAntiforgery antiforgery)
+{
+	app.UseStaticFiles();
+
+	app.UseStaticFiles(new StaticFileOptions
+    {
+        OnPrepareResponse = ctx =>
+        {
+            int durationInSeconds = Configuration.GetValue<Int32>("Cache:StaticCacheDuration");
+            ctx.Context.Response.Headers[HeaderNames.CacheControl] =
+                "public,max-age=" + durationInSeconds + ",must-revalidate,s-max-age=" + durationInSeconds;
+        }
+    });
+}
+
+appsetting.json
+
+"Cache": {
+	"StaticCacheDuration": 14400,
+	"DistributedCache_TimeOut": 1800
+},
+
+Với đoạn code trên set thời gian cache của file tĩnh của các file trên .NET Core. Các file .css, .js, font, image, video.
+
+Đọc thêm về cache header.
+https://imagekit.io/blog/ultimate-guide-to-http-caching-for-static-assets/

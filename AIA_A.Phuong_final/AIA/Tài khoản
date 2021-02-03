@@ -1,0 +1,78 @@
+## Tài khoản Azure
+Hiện đang chạy Azure Storage
+
+Đăng nhập:
+Email: admin@ciagency.onmicrosoft.com
+Password: Next@110612
+check với Trang.
+
+## Các điều cần làm
+Tiến hành disable xóa file trên Azure Storage sau khi đã đưa ICON lên hoàn tất.
+
+## Tài khoản VPS:
+SSH:
+IP: 167.71.206.163
+Username: root
+Password: Abc@@123
+
+Truy cập SFTP bằng thông tin trên port 22.
+
+Các bước tiến hành cài đặt nếu xóa:
+Cài đặt Centos 7 64 bit
+1. Cài đặt Nginx
+2. Tạo thư mục /var/www/ tạo các folder upload source.
+3. Tạo config nginx trong /etc/nginx/config.d chứa các file config
+4. Cài đặt .Net core trong Cent Os 7.
+5. Khi chạy vào trong thư mục source chạy dotnet IconBe.dll để chạy.
+
+Cấu hình mẫu:
+## Cấu hình nginx
+server {
+	server_name api.anhduong.us;
+	client_max_body_size 1024M;
+    location /icon {
+        proxy_pass http://localhost:5100;
+        proxy_http_version 1.1;
+        proxy_set_header   Upgrade $http_upgrade;
+        proxy_set_header   Connection keep-alive;
+        proxy_set_header   Host $host;
+        proxy_cache_bypass $http_upgrade;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+
+	add_header Strict-Transport-Security "max-age=31536000;" always;
+
+	proxy_connect_timeout       600;
+	proxy_send_timeout          600;
+	proxy_read_timeout          600;
+	send_timeout                600;
+    }
+
+	location /healthcheck.html {
+		add_header  Content-Type  text/plain;
+		return 200 ;
+	}
+
+
+    listen 443 ssl; # managed by Certbot
+    add_header Strict-Transport-Security "max-age=31536000;" always;
+    ssl_certificate /etc/letsencrypt/live/api.anhduong.us/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/api.anhduong.us/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+}
+server {
+    if ($host = api.anhduong.us) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+	server_name api.anhduong.us;
+    listen 80;
+    return 404; # managed by Certbot
+}
+
+Cài supper visor để chạy tự động.
+
+Cần xóa nếu không xài

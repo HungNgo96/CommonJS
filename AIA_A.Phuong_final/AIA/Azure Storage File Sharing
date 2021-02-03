@@ -1,0 +1,40 @@
+Như ở bài viết Azure Storage Blob File thì Azure Storage File Sharing có thể sử dụng chia sẻ file cho người khác hoặc lưu trữ logs.
+
+Trên Icon thì hệ thống sử dụng Azure File Shareing để lưu trữ logs tập trung cho các container.
+
+##Trên Container
+Khi tạo docker-image file thì người tạo đã thêm dòng để mount đường dẫn Azure File Storage vào đó xem như đó là một thư mục thuộc container.
+
+https://docs.microsoft.com/en-us/azure/storage/files/storage-how-to-use-files-linux
+
+## Trên cấu hình lưu log
+Sử dụng Serilog cấu hình trong appsetting.json
+
+"Serilog": {
+    "Using": [ "Serilog.Sinks.Console", "Serilog.Sinks.File" ],
+    "MinimumLevel": {
+      "Default": "Debug",
+      "Override": {
+        "Microsoft": "Fatal",
+        "System": "Fatal"
+      }
+    },
+    "WriteTo": [
+      {
+        "Name": "Debug"
+      },
+      {
+        "Name": "File",
+        "Args": {
+          "path": "/apps/logs/icon/{Container name}/api/icon-api.log",
+          "rollingInterval": "Day",
+          "retainedFileCountLimit": "7",
+          "rollOnFileSizeLimit": "true",
+          "shared": "true",
+          "flushToDiskInterval": "00:00:01"
+        }
+      }
+    ]
+  },
+
+Với Container name tương ứng với máy tương ứng.
