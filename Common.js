@@ -796,3 +796,26 @@ export function validURL(str) {
     '(\\#[-a-z\\d_]*)?$','i'); // fragment locator
   return !!pattern.test(str);
 }
+
+//https://anonystick.com/blog-developer/debounce-vs-throttle-javascript-202005261421546
+export const   debounce =(fn, delay) => {
+        return args => {
+            clearTimeout(fn.id)
+
+            fn.id = setTimeout(() => {
+                fn.call(this, args)
+            }, delay)
+        }
+    }
+
+export const  throttle =  (fn, delay) => {
+      return args => {
+          if (fn.id) return
+
+          fn.id = setTimeout(() => {
+              fn.call(this, args)
+              clearTimeout(fn.id)
+              fn.id = null
+          }, delay)
+      }
+  }
