@@ -1,0 +1,6 @@
+1. Backend vấn đề SMS nên không được public bên Client và phải call bên Backend, Key thì phải để trong web.config.
+callSMS() //2581
+2.Không nên hardcode số trực tiếp nên thêm Enum hoặc khai báo Hằng số.
+3.Nên sử dụng kiểu ENUM để điều kiện tường minh cho dễ hiểu chứ so sánh = 1 = 2 =3 không có ý nhĩa.
+4.Paramter nhiều từ 2 trở lên nên tạo 1 model để data binding nó và tránh lặp lại nhiều lần.
+5.Khi sử dụng dữ liệu check dữ liệu có tồn tại hay bị null mà xử lí tránh trường hợp value null undefined.
