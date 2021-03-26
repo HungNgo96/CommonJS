@@ -3,7 +3,7 @@ Hiện đang chạy Azure Storage
 
 Đăng nhập:
 Email: admin@ciagency.onmicrosoft.com
-Password: Next@110612
+Password: Next@110613
 check với Trang.
 
 ## Các điều cần làm
