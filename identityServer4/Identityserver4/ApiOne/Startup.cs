@@ -21,8 +21,9 @@ namespace ApiOne
                  config.Authority = "https://localhost:44305/";
 
                  config.Audience = "ApiOne";
+                 config.SaveToken = true;
 
-                 //config.RequireHttpsMetadata = false;
+                 config.RequireHttpsMetadata = false;
              });
             services.AddControllers();
         }

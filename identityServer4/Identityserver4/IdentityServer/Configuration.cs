@@ -31,9 +31,19 @@ namespace IdentityServer
         public static IEnumerable<ApiResource> GetApis() =>
             new List<ApiResource>
             {
-                new ApiResource("ApiOne"),
-                new ApiResource("ApiTwo"),
+                //new ApiResource("ApiOne"),
+                //new ApiResource("ApiTwo"),
             };
+
+        public static IEnumerable<ApiScope> GetApiScopes()
+        {
+            return new List<ApiScope>
+            {
+                // backward compat
+                new ApiScope("ApiOne"),
+                new ApiScope("ApiTwo")
+            };
+        }
 
         public static IEnumerable<Client> GetClients() =>
             new List<Client>
@@ -53,7 +63,8 @@ namespace IdentityServer
 
                     RedirectUris = {"https://localhost:44322/signin-oidc"},
 
-                    AllowedScopes = {"ApiOne",
+                    AllowedScopes = {
+                        "ApiOne",
                         "ApiTwo",
                         IdentityServer4.IdentityServerConstants.StandardScopes.OpenId,
                         //IdentityServer4.IdentityServerConstants.StandardScopes.Email,

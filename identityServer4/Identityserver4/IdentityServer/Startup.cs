@@ -57,6 +57,7 @@ namespace IdentityServer
                 .AddInMemoryApiResources(Configuration.GetApis())
                 .AddInMemoryClients(Configuration.GetClients())
                 .AddInMemoryIdentityResources(Configuration.GetIdentityResources())
+                .AddInMemoryApiScopes(Configuration.GetApiScopes())
                 .AddDeveloperSigningCredential();
 
             services.AddControllersWithViews();
