@@ -7,7 +7,7 @@ namespace ApiOne.Controllers
     public class SecretController : Controller
     {
         [Route("/secret")]
-        //[Authorize]
+        [Authorize]
         public string Index()
         {
             var claims = User.Claims.ToList();

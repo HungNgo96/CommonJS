@@ -44,6 +44,9 @@ namespace MVC_Client
                     config.ClientSecret = "client_secret_mvc";
                     config.SaveTokens = true;
                     config.ResponseType = "code";
+                    config.UsePkce = true;
+
+                    config.SignedOutCallbackPath = "/Home/Index";
 
                     // configure cookie claim mapping
                     config.ClaimActions.DeleteClaim("amr");
@@ -59,6 +62,8 @@ namespace MVC_Client
                     config.Scope.Add("openid");
                     config.Scope.Add("rc.scope");
                     config.Scope.Add("ApiOne");//for allow scope ApiOne in Client
+                    config.Scope.Add("ApiTwo");
+                    config.Scope.Add("offline_access");
                 });
 
             services.AddHttpClient();

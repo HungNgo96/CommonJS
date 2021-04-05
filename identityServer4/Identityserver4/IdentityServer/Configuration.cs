@@ -1,4 +1,5 @@
 ﻿using IdentityModel;
+using IdentityServer4;
 using IdentityServer4.Models;
 using System;
 using System.Collections.Generic;
@@ -31,19 +32,19 @@ namespace IdentityServer
         public static IEnumerable<ApiResource> GetApis() =>
             new List<ApiResource>
             {
-                //new ApiResource("ApiOne"),
-                //new ApiResource("ApiTwo"),
+                new ApiResource("ApiOne"),
+                new ApiResource("ApiTwo"),
             };
 
-        public static IEnumerable<ApiScope> GetApiScopes()
-        {
-            return new List<ApiScope>
-            {
-                // backward compat
-                new ApiScope("ApiOne"),
-                new ApiScope("ApiTwo")
-            };
-        }
+        //public static IEnumerable<ApiScope> GetApiScopes()
+        //{
+        //    return new List<ApiScope>
+        //    {
+        //        // backward compat
+        //        new ApiScope("ApiOne"),
+        //        new ApiScope("ApiTwo")
+        //    };
+        //}
 
         public static IEnumerable<Client> GetClients() =>
             new List<Client>
@@ -62,20 +63,60 @@ namespace IdentityServer
                     AllowedGrantTypes = GrantTypes.Code,
 
                     RedirectUris = {"https://localhost:44322/signin-oidc"},
+                       PostLogoutRedirectUris = { "https://localhost:44322/Home/Index" },
 
                     AllowedScopes = {
                         "ApiOne",
                         "ApiTwo",
-                        IdentityServer4.IdentityServerConstants.StandardScopes.OpenId,
+                        IdentityServerConstants.StandardScopes.OpenId,
                         //IdentityServer4.IdentityServerConstants.StandardScopes.Email,
-                        IdentityServer4.IdentityServerConstants.StandardScopes.Profile,
+                        IdentityServerConstants.StandardScopes.Profile,
                         "rc.scope",
                     },
 
                     RequireConsent = false,
+                    AllowOfflineAccess = true,//set for refresh token
                     //puts all the claims in the id token
                     //AlwaysIncludeUserClaimsInIdToken = true,
-                }
+                },
+
+                  new Client {
+                    ClientId = "client_id_js_url",
+
+                    AllowedGrantTypes = GrantTypes.Implicit,
+
+                    RedirectUris = { "https://localhost:44345/home/signin" },
+                    AllowedScopes = {
+                        IdentityServerConstants.StandardScopes.OpenId,
+                        "ApiOne",
+                    },
+
+                    RequireConsent = false,
+                    AllowAccessTokensViaBrowser = true,
+                },
+                     new Client {
+                    ClientId = "client_id_js",
+
+                    AllowedGrantTypes = GrantTypes.Code,
+                    RequirePkce = true,
+                    RequireClientSecret = false,
+
+                    RedirectUris = { "https://localhost:44345/home/signin" },
+                    PostLogoutRedirectUris = { "https://localhost:44345/Home/Index" },
+                    AllowedCorsOrigins = { "https://localhost:44345" },
+
+                    AllowedScopes = {
+                        IdentityServerConstants.StandardScopes.OpenId,
+                        "ApiOne",
+                        "ApiTwo",
+                        "rc.scope",
+                    },
+
+                    //AccessTokenLifetime = 1,
+
+                    AllowAccessTokensViaBrowser = true,
+                    RequireConsent = false,
+                },
             };
     }
 }

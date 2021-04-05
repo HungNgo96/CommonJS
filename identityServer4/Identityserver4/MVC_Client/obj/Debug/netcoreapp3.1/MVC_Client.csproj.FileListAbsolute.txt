@@ -63,8 +63,6 @@ A:\Hung\Code\JS\Common\identityServer4\Identityserver4\MVC_Client\bin\Debug\netc
 A:\Hung\Code\JS\Common\identityServer4\Identityserver4\MVC_Client\bin\Debug\netcoreapp3.1\runtimes\win\lib\netcoreapp2.0\System.Runtime.Caching.dll
 A:\Hung\Code\JS\Common\identityServer4\Identityserver4\MVC_Client\bin\Debug\netcoreapp3.1\runtimes\win\lib\netstandard2.0\System.Security.Cryptography.ProtectedData.dll
 A:\Hung\Code\JS\Common\identityServer4\Identityserver4\MVC_Client\bin\Debug\netcoreapp3.1\IdentityModel.dll
-A:\Hung\Code\JS\Common\identityServer4\Identityserver4\MVC_Client\bin\Debug\netcoreapp3.1\System.Text.Encodings.Web.dll
-A:\Hung\Code\JS\Common\identityServer4\Identityserver4\MVC_Client\bin\Debug\netcoreapp3.1\System.Text.Json.dll
 D:\Common\CommonJS\identityServer4\Identityserver4\MVC_Client\bin\Debug\netcoreapp3.1\appsettings.Development.json
 D:\Common\CommonJS\identityServer4\Identityserver4\MVC_Client\bin\Debug\netcoreapp3.1\appsettings.json
 D:\Common\CommonJS\identityServer4\Identityserver4\MVC_Client\bin\Debug\netcoreapp3.1\Properties\launchSettings.json

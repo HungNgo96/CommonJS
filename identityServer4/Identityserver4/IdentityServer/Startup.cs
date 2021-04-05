@@ -26,11 +26,12 @@ namespace IdentityServer
         }
         public void ConfigureServices(IServiceCollection services)
         {
+            var connectionString = _config.GetConnectionString("DefaultConnection");
             services.AddDbContext<AppDbContext>(config =>
             {
-                var connectionString = _config.GetConnectionString("DefaultConnection");
-                //config.UseSqlServer(connectionString);
-                config.UseInMemoryDatabase("Memory");
+
+                config.UseSqlServer(connectionString);
+                //config.UseInMemoryDatabase("Memory");
             });
 
             // AddIdentity registers the services
@@ -49,16 +50,35 @@ namespace IdentityServer
             {
                 config.Cookie.Name = "IdentityServer4.Cookie";
                 config.LoginPath = "/Auth/Login";
+                config.LogoutPath = "/Auth/Logout";
             });
 
-
+            var assembly = typeof(Startup).Assembly.GetName().Name;
             services.AddIdentityServer()
                 .AddAspNetIdentity<IdentityUser>()
-                .AddInMemoryApiResources(Configuration.GetApis())
-                .AddInMemoryClients(Configuration.GetClients())
-                .AddInMemoryIdentityResources(Configuration.GetIdentityResources())
-                .AddInMemoryApiScopes(Configuration.GetApiScopes())
+
+                .AddConfigurationStore(options =>
+                {
+                    options.ConfigureDbContext = b => b.UseSqlServer(connectionString,
+                        sql => sql.MigrationsAssembly(assembly));
+                })
+                .AddOperationalStore(options =>
+                {
+                    options.ConfigureDbContext = b => b.UseSqlServer(connectionString,
+                        sql => sql.MigrationsAssembly(assembly));
+                })
+                //.AddInMemoryApiResources(Configuration.GetApis())
+                //.AddInMemoryClients(Configuration.GetClients())
+                //.AddInMemoryIdentityResources(Configuration.GetIdentityResources())
+                //.AddInMemoryApiScopes(Configuration.GetApiScopes())
                 .AddDeveloperSigningCredential();
+
+            services.AddAuthentication()
+              .AddFacebook(config => {
+                  config.AppId = "651494512375083";
+                  config.AppSecret = "39399a15496ed7995fa0f2328c6b7137";
+                  config.CallbackPath = "/signin-facebook";
+              });
 
             services.AddControllersWithViews();
         }

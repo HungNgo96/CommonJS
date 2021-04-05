@@ -1,23 +1,23 @@
 {
   "format": 1,
   "restore": {
-    "D:\\Common\\CommonJS\\identityServer4\\Identityserver4\\MVC_Client\\MVC_Client.csproj": {}
+    "A:\\Hung\\Code\\JS\\Common\\identityServer4\\Identityserver4\\MVC_Client\\MVC_Client.csproj": {}
   },
   "projects": {
-    "D:\\Common\\CommonJS\\identityServer4\\Identityserver4\\MVC_Client\\MVC_Client.csproj": {
+    "A:\\Hung\\Code\\JS\\Common\\identityServer4\\Identityserver4\\MVC_Client\\MVC_Client.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "D:\\Common\\CommonJS\\identityServer4\\Identityserver4\\MVC_Client\\MVC_Client.csproj",
+        "projectUniqueName": "A:\\Hung\\Code\\JS\\Common\\identityServer4\\Identityserver4\\MVC_Client\\MVC_Client.csproj",
         "projectName": "MVC_Client",
-        "projectPath": "D:\\Common\\CommonJS\\identityServer4\\Identityserver4\\MVC_Client\\MVC_Client.csproj",
-        "packagesPath": "C:\\Users\\E5570\\.nuget\\packages\\",
-        "outputPath": "D:\\Common\\CommonJS\\identityServer4\\Identityserver4\\MVC_Client\\obj\\",
+        "projectPath": "A:\\Hung\\Code\\JS\\Common\\identityServer4\\Identityserver4\\MVC_Client\\MVC_Client.csproj",
+        "packagesPath": "C:\\Users\\Hung Ngo\\.nuget\\packages\\",
+        "outputPath": "A:\\Hung\\Code\\JS\\Common\\identityServer4\\Identityserver4\\MVC_Client\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder"
         ],
         "configFilePaths": [
-          "C:\\Users\\E5570\\AppData\\Roaming\\NuGet\\NuGet.Config",
+          "C:\\Users\\Hung Ngo\\AppData\\Roaming\\NuGet\\NuGet.Config",
           "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
         ],
         "originalTargetFrameworks": [
@@ -29,6 +29,7 @@
         },
         "frameworks": {
           "netcoreapp3.1": {
+            "targetAlias": "netcoreapp3.1",
             "projectReferences": {}
           }
         },
@@ -40,10 +41,11 @@
       },
       "frameworks": {
         "netcoreapp3.1": {
+          "targetAlias": "netcoreapp3.1",
           "dependencies": {
             "IdentityModel": {
               "target": "Package",
-              "version": "[5.1.0, )"
+              "version": "[4.0.0, )"
             },
             "Microsoft.AspNetCore.Authentication.OpenIdConnect": {
               "target": "Package",
@@ -72,7 +74,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\3.1.402\\RuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\5.0.102\\RuntimeIdentifierGraph.json"
         }
       }
     }

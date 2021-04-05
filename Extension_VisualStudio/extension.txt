@@ -1,0 +1,25 @@
+SQLite for windows runtime.
+SQLite and SQL server compact toolbox.
+ResXManager.
+Roslynator 2019.
+Glyphfriend 2019
+Tralling hitespace Visuallizer.
+Live Share.
+Open Command Line.
+VSColorOutput.
+Match Margin.
+Javascript snippet Pack.
+Git extensions.
+Bundler & Minifier.
+CodeMaid.
+Visual Studio IntelliCode.
+Microsoft Library Manager.
+ML.NET Model Builder.
+NugetRecommender.
+Add New File.
+GitHub Extension for Visual Studio.
+File Icons.
+Indent Guides.
+Viasfora.
+Code Formatter.
+Package Installer.

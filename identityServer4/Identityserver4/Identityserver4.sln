@@ -9,7 +9,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApiOne", "ApiOne\ApiOne.csp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApiTwo", "ApiTwo\ApiTwo.csproj", "{D2B9D177-2F1A-435A-8723-C3D64C452FD3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MVC_Client", "MVC_Client\MVC_Client.csproj", "{DBDB570C-272A-42B2-AA30-572996BC758F}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MVC_Client", "MVC_Client\MVC_Client.csproj", "{DBDB570C-272A-42B2-AA30-572996BC758F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JavascriptClient", "JavascriptClient\JavascriptClient.csproj", "{2E4D0CBB-AC14-4185-B584-8C88B3FDEB33}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +35,10 @@ Global
 		{DBDB570C-272A-42B2-AA30-572996BC758F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DBDB570C-272A-42B2-AA30-572996BC758F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DBDB570C-272A-42B2-AA30-572996BC758F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2E4D0CBB-AC14-4185-B584-8C88B3FDEB33}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E4D0CBB-AC14-4185-B584-8C88B3FDEB33}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E4D0CBB-AC14-4185-B584-8C88B3FDEB33}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E4D0CBB-AC14-4185-B584-8C88B3FDEB33}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

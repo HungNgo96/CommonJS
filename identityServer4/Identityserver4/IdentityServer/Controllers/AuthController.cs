@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -55,6 +56,21 @@ namespace IdentityServer.Controllers
             return View();
         }
 
+        [HttpGet]
+        public async Task<IActionResult> Logout(string logoutId)
+        {
+            await _signInManager.SignOutAsync();
+
+            var logoutRequest = await _interactionService.GetLogoutContextAsync(logoutId);
+
+            if (string.IsNullOrEmpty(logoutRequest.PostLogoutRedirectUri))
+            {
+                return RedirectToAction("Index", "Home");
+            }
+
+            return Redirect(logoutRequest.PostLogoutRedirectUri);
+        }
+
 
         [HttpGet]
         public IActionResult Register(string returnUrl)
@@ -81,6 +97,65 @@ namespace IdentityServer.Controllers
             }
 
             return View();
+        }
+
+        public async Task<IActionResult> ExternalLogin(string provider, string returnUrl)
+        {
+            var redirectUri = Url.Action(nameof(ExteranlLoginCallback), "Auth", new { returnUrl });
+            var properties = _signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUri);
+            return Challenge(properties, provider);
+        }
+
+        public async Task<IActionResult> ExteranlLoginCallback(string returnUrl)
+        {
+            var info = await _signInManager.GetExternalLoginInfoAsync();
+            if (info == null)
+            {
+                return RedirectToAction("Login");
+            }
+
+            var result = await _signInManager
+                .ExternalLoginSignInAsync(info.LoginProvider, info.ProviderKey, false);
+
+            if (result.Succeeded)
+            {
+                return Redirect(returnUrl);
+            }
+
+            var username = info.Principal.FindFirst(ClaimTypes.Name.Replace(" ", "_")).Value;
+            return View("ExternalRegister", new ExternalRegisterViewModel
+            {
+                Username = username,
+                ReturnUrl = returnUrl
+            });
+        }
+
+        public async Task<IActionResult> ExternalRegister(ExternalRegisterViewModel vm)
+        {
+            var info = await _signInManager.GetExternalLoginInfoAsync();
+            if (info == null)
+            {
+                return RedirectToAction("Login");
+            }
+
+            var user = new IdentityUser(vm.Username);
+            var result = await _userManager.CreateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                return View(vm);
+            }
+
+            result = await _userManager.AddLoginAsync(user, info);
+
+            if (!result.Succeeded)
+            {
+                return View(vm);
+            }
+
+            await _signInManager.SignInAsync(user, false);
+
+            return Redirect(vm.ReturnUrl);
         }
     }
 }
