@@ -22,6 +22,7 @@ namespace IdentityServer
             var host = CreateHostBuilder(args).Build();
 
             using var scope = host.Services.CreateScope();
+            //create User test
             var useManager = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
 
             var user = new IdentityUser("bob2");
@@ -29,39 +30,39 @@ namespace IdentityServer
             useManager.AddClaimAsync(user, new Claim("rc.garndma", "big.cookie")).GetAwaiter().GetResult();
 
             //SET UP EF for indentityserver4
-            scope.ServiceProvider.GetRequiredService<PersistedGrantDbContext>()
-                .Database.Migrate();
+            //scope.ServiceProvider.GetRequiredService<PersistedGrantDbContext>()
+            //    .Database.Migrate();
 
-            var context = scope.ServiceProvider.GetRequiredService<ConfigurationDbContext>();
+            //var context = scope.ServiceProvider.GetRequiredService<ConfigurationDbContext>();
 
-            context.Database.Migrate();
+            //context.Database.Migrate();
 
-            if (!context.Clients.Any())
-            {
-                foreach (var client in Configuration.GetClients())
-                {
-                    context.Clients.Add(client.ToEntity());
-                }
-                context.SaveChanges();
-            }
+            //if (!context.Clients.Any())
+            //{
+            //    foreach (var client in Configuration.GetClients())
+            //    {
+            //        context.Clients.Add(client.ToEntity());
+            //    }
+            //    context.SaveChanges();
+            //}
 
-            if (!context.IdentityResources.Any())
-            {
-                foreach (var resource in Configuration.GetIdentityResources())
-                {
-                    context.IdentityResources.Add(resource.ToEntity());
-                }
-                context.SaveChanges();
-            }
+            //if (!context.IdentityResources.Any())
+            //{
+            //    foreach (var resource in Configuration.GetIdentityResources())
+            //    {
+            //        context.IdentityResources.Add(resource.ToEntity());
+            //    }
+            //    context.SaveChanges();
+            //}
 
-            if (!context.ApiResources.Any())
-            {
-                foreach (var resource in Configuration.GetApis())
-                {
-                    context.ApiResources.Add(resource.ToEntity());
-                }
-                context.SaveChanges();
-            }
+            //if (!context.ApiResources.Any())
+            //{
+            //    foreach (var resource in Configuration.GetApis())
+            //    {
+            //        context.ApiResources.Add(resource.ToEntity());
+            //    }
+            //    context.SaveChanges();
+            //}
 
 
 

@@ -97,12 +97,16 @@ namespace IdentityServer
                      new Client {
                     ClientId = "client_id_js",
 
-                    AllowedGrantTypes = GrantTypes.Code,
-                    RequirePkce = true,
-                    RequireClientSecret = false,
+                    AllowedGrantTypes = GrantTypes.Implicit,
+
+                    #region PKce
+                    //AllowedGrantTypes = GrantTypes.Code,
+                    //RequirePkce = true,
+                    //RequireClientSecret = false,
+                    #endregion
 
                     RedirectUris = { "https://localhost:44345/home/signin" },
-                    PostLogoutRedirectUris = { "https://localhost:44345/Home/Index" },
+                    //PostLogoutRedirectUris = { "https://localhost:44345/Home/Index" },
                     AllowedCorsOrigins = { "https://localhost:44345" },
 
                     AllowedScopes = {
@@ -112,7 +116,7 @@ namespace IdentityServer
                         "rc.scope",
                     },
 
-                    //AccessTokenLifetime = 1,
+                    //AccessTokenLifetime = 1,//lifetime accesstoken
 
                     AllowAccessTokensViaBrowser = true,
                     RequireConsent = false,

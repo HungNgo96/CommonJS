@@ -57,19 +57,20 @@ namespace IdentityServer
             services.AddIdentityServer()
                 .AddAspNetIdentity<IdentityUser>()
 
-                .AddConfigurationStore(options =>
-                {
-                    options.ConfigureDbContext = b => b.UseSqlServer(connectionString,
-                        sql => sql.MigrationsAssembly(assembly));
-                })
-                .AddOperationalStore(options =>
-                {
-                    options.ConfigureDbContext = b => b.UseSqlServer(connectionString,
-                        sql => sql.MigrationsAssembly(assembly));
-                })
-                //.AddInMemoryApiResources(Configuration.GetApis())
-                //.AddInMemoryClients(Configuration.GetClients())
-                //.AddInMemoryIdentityResources(Configuration.GetIdentityResources())
+                //.AddConfigurationStore(options =>
+                //{
+                //    options.ConfigureDbContext = b => b.UseSqlServer(connectionString,
+                //        sql => sql.MigrationsAssembly(assembly));
+                //})
+                //.AddOperationalStore(options =>
+                //{
+                //    options.ConfigureDbContext = b => b.UseSqlServer(connectionString,
+                //        sql => sql.MigrationsAssembly(assembly));
+                //})
+
+                .AddInMemoryApiResources(Configuration.GetApis())
+                .AddInMemoryClients(Configuration.GetClients())
+                .AddInMemoryIdentityResources(Configuration.GetIdentityResources())
                 //.AddInMemoryApiScopes(Configuration.GetApiScopes())
                 .AddDeveloperSigningCredential();
 

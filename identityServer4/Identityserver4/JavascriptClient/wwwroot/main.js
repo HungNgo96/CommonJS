@@ -3,9 +3,10 @@
     authority: "https://localhost:44305/",
     client_id: "client_id_js",
     redirect_uri: "https://localhost:44345/Home/SignIn",
-    post_logout_redirect_uri: "https://localhost:44345/Home/Index",
-    response_type: "code",
-    scope: "openid rc.scope ApiOne ApiTwo"
+    //post_logout_redirect_uri: "https://localhost:44345/Home/Index",
+    response_type: "id_token token",
+    //scope: "openid rc.scope ApiOne ApiTwo"
+    scope: "openid ApiOne"
 };
 
 var userManager = new Oidc.UserManager(config);
