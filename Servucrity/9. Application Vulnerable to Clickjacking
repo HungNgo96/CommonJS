@@ -1,0 +1,3 @@
+9. Application Vulnerable to Clickjacking
+
+Sử dụng X-Frame-Options để chặn -> 30 phút - 1h để apply và test.

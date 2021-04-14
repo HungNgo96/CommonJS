@@ -1,0 +1,5 @@
+7. Username enumeration
+
+Validate dữ liệu, check null value không cho gởi đến login. Check captcha trước khi login
+
+Thời gian: Tầm 2 giờ

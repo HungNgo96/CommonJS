@@ -1,0 +1,13 @@
+1. Weak Session Implementation Fl
+
+a. Session Hijacking
+
+b.  Concurrent logon allowed
+
+c. No Session Timeout
+
+d. Session Fixation
+Đăng nhập tạo thông tin token, userid, username, fullname lúc nào cũng cần các thông tin này để thực thi.
+Tìm cách đổi session
+
+Phải đọc kĩ rồi check, tạm thời chưa có thời gian, bàn với Thanh hay Hùng check tiếp

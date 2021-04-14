@@ -1,0 +1,11 @@
+5. Lack of rate limiting
+
+Khôi phục mật khẩu sẽ gởi email liên tục, giảm số lần gởi email tối đa
+-->
+- Thêm cột thời gian lần cuối gởi xác nhận khôi phục mật khẩu. (CSDL)
+- Cập nhật model
+- Viết code check.
+
+(Đưa ra rule mới về việc đổi MK: 15 phút mới gởi 1 lần. Token cũng chỉ có giá trị trong vòng 1-2 tiếng hoặc 24 giờ)
+
+Thời gian làm : 4-5 giờ

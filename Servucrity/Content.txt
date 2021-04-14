@@ -1,0 +1,9 @@
+1. Thời gian khóa user sau khi login sai là bao lâu.
+2. Tìm hiểu authentication trong .net core, jwt sẽ lưu ở đâu databse, session, cookie, cache
+Flush các giá trị chứa xác thực.
+3. Revoke token trên api, ví dụ đang có chỉ refresh token, có nên lưu access token vào db để kiểm tra không.
+4. Trong backend mvc, dùng access token để đăng nhập, thì flush cái thông tin đăn nhập bằng hướng nào dễ nhất.
+Xác định user session và xóa đi / Hoặc khi đăng nhập thì gọi api revoken token đi, token hết hạn không thực thi được.
+5. Câu chuyện UpdateSecurityStampAsync không hoạt động, 
+6. sử dụng redis để lưu trữ access token cho user, đặt biến access token ra một biến, kiểm tra biến đó có tồn tại không
+nếu có thì tiến hành revoke token đi.
