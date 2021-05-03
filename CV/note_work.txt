@@ -1,0 +1,5 @@
+06/2020 – 04/2021 _ Lập trình viên ASP .NET _ CÔNG TY
+TNHH CHANGE INTERACTION _ Lập trình Net core 3.1, nâng cấp WebForm, .Net Framework qua Net core 3.1.
+
+09/2019 - 4/2020 _ Lập trình viên WebForm _ CÔNG TY TNHH GIẢI
+PHÁP PHẦN MỀM DOANH NGHIỆP 5S  _ Hỗ trợ bảo trì, nâng cấp, xuất báo cáo excel trên nền tảng webForm, tạo Dashboard chart thống kê.
