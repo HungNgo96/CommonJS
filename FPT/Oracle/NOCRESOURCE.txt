@@ -1,0 +1,1035 @@
+create or replace PACKAGE BODY                                                                 SU8_PKG_NOCRESOURCE AS
+
+
+/*******************************************************************************
+    ' Description: LAY NOC RESOURCE BAO GOM ipv4 , ipv6, rt (new and reused)
+    ' Author: ThatNN@fpt.com.vn
+    ' Created Date: 02/02/2021
+    VARIABLE p_RESULT refcursor;
+    Exec FLL.SU8_PKG_NOCRESOURCE.SU8R_NOCReS_IPv4_IPv6_RT_GET('FTS',1034710242,1,2,101,'92,102',1, :p_RESULT);
+    print p_RESULT;
+    
+    --NOCReS_IPv4_IPv6_RT_GET @Parent='FTS',@ObjID='1020625462',@Kind1='3',@Kind2='1',@ServiceTypeID=91,@TypeID=''
+/********************************************************************************
+@Kind1	: IPv4=1, IPv6=2, RT=3
+@Kind2	: tương ứng với NOCReSourceType.Type
+	IPFront = 1, RTOld = 1
+	, IPRoute = 2, RTNew = 2
+	, RTSiteHub = 3
+	, RTLineNIX = 4
+	, RTLineGIA = 5
+@Free : [0] --Tài nguyên dùng lại, [1] Cap moi
+Alter: 29.03.2019 Gom chung RT NEW VÀ RT Old thành 1
+Alter: 31.05.2019 Gom RT Old Domain xuống RT New Domain dùng lại
+Alter: 03.05.2019 Lọc RT theo số lượng & chuyển đổi RT old với New
+Alter: 04.09.2019 Lấy hết IP trống là tài nguyên dùng lại và tài nguyên mới: ObjID IN (0,-1)
+
+    *******************************************************************************/    
+   PROCEDURE SU8R_NOCReS_IPv4_IPv6_RT_GET(
+    p_parent IN VARCHAR2,
+    p_objId IN number,
+    p_kind1 int,
+    p_kind2 int,
+    p_serviceTypeId int,
+    p_typeIds varchar2,
+    p_free int,
+    p_result OUT SYS_REFCURSOR
+  )
+  AS
+  v_query varchar2(8000);
+  v_templateQuery varchar2(1000);
+  cursor_name INT;
+  ROWS_PROCESSED INTEGER;
+  BEGIN 
+    IF(p_free = 0)
+    THEN
+        BEGIN
+            --Đối với RT: load danh sách dùng lại từ NOCReS_RT bên PhongNC quản lý
+            IF(p_kind1 = 3)
+            THEN
+                BEGIN
+                    v_templateQuery:='
+                    SELECT r.objid,r.ContractC,r.Code,r.Name,r.Kind1,r.Kind2,r.TypeID,r.TypeName
+                    FROM FLL.NOCReSource r 
+                    WHERE r.ObjID=${p_objId} and r.Kind1=${p_kind1} and r.Kind2=${p_kind2} and r.Parent=${p_parent}        
+                    UNION
+                    SELECT ObjID,null as ContractC,t1.ID as Code,TO_NCHAR(t1.RT) as Name,${p_kind1} as Kind1,${p_kind2} as Kind2,t1.TypeID,t2.TypeName
+                    FROM FLL.NOCReS_RT t1
+                    INNER JOIN FLL.NOCReS_RT_Type t2 on t1.TypeID=t2.ID
+                    AND t1.objId=${p_objIdReUsed}
+                    AND t2.type=${p_kind2}
+                    AND t1.ServiceTypeId=${p_serviceTypeId}
+                    ';
+                    IF(p_serviceTypeId = 91)  --ĐỐI VỚI LOẠI MPLS LAYER 2: THÌ GOM CHUNG 2 LOẠI THÀNH 1
+                    THEN
+                            DECLARE
+                            --LIST NOC RT OLD
+                            v_queryNOCRTOld varchar2(1000);
+                            --LIST NOC RT NEW
+                            v_queryNOCRTNew varchar2(1000);
+                            --Đưa tài nguyên RT Old Domain xuống RT New Domain dùng lại
+                            v_queryNOCRTOldDomain varchar2(1000);
+                            --Đưa tài nguyên RT New Domain < 27800 xuống RT New Domain dùng lại
+                            v_queryNOCRTNewDomainLess27800 varchar2(1000);
+                            BEGIN
+                        
+                            --LIST NOC RT OLD
+                            v_queryNOCRTOld:= '( :p_templateQuery )';
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_objId}' , ':p_objId');
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_kind1}' , ':p_kind1');
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_kind2}' , 1);
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_parent}' , ':p_parent');
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_objIdReUsed}' , -1);                       
+                            
+                            --LIST NOC RT NEW
+                            v_queryNOCRTNew:= '( :p_templateQuery )';
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_objId}' , ':p_objId');
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_kind1}' , ':p_kind1');
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_kind2}' , 2);
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_parent}' , ':p_parent');
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_objIdReUsed}' , -1);               
+
+                            --Đưa tài nguyên RT Old Domain xuống RT New Domain dùng lại
+                            v_queryNOCRTOldDomain:= '( :p_templateQuery )';
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_objId}' , ':p_objId');
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_kind1}' , ':p_kind1');
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_kind2}' , 1);
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_parent}' , ':p_parent');
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_objIdReUsed}' , 0);
+                            
+                             --Đưa tài nguyên RT New Domain < 27800 xuống RT New Domain dùng lại
+                            v_queryNOCRTNewDomainLess27800:= '( :p_templateQuery AND TO_NUMBER(t1.RT) < 27800' || ' )';
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_objId}' , ':p_objId');
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_kind1}' , ':p_kind1');
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_kind2}' , 2);
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_parent}' , ':p_parent');
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_objIdReUsed}' ,0);
+                            
+                            v_query:= v_queryNOCRTOld || ' UNION ' || v_queryNOCRTNew || ' UNION ' || v_queryNOCRTOldDomain || ' UNION ' || v_queryNOCRTNewDomainLess27800;
+                            END;
+                    ELSIF (p_serviceTypeId = 101)  --MPLS Layer 3
+                    THEN
+                            DECLARE
+                                v_queryRTNewDomain varchar2(1000);
+                                v_queryRTNewDomainLess50000ReUsed varchar2(1000);
+                            BEGIN
+                            --List RT New Domain
+                            v_queryRTNewDomain:= '( :p_templateQuery )';
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_objId}' , ':p_objId');
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_kind1}' , ':p_kind1');
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_kind2}' , ':p_kind2');
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_parent}' , ':p_parent');
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_objIdReUsed}' , '-1');
+
+                            --Query lấy dữ liệu RT New Domain < 50000
+                            --Đưa tài nguyên RT New Domain < 50000 xuống RT New Domain dùng lại
+                            v_queryRTNewDomainLess50000ReUsed:= '( :p_templateQuery AND TO_NUMBER(t1.RT) < 50000' || ' )';
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_objId}' , ':p_objId');
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_kind1}' , ':p_kind1');
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_kind2}' , 2);
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_parent}' , ':p_parent');
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_objIdReUsed}' ,0);
+                            v_query:= v_queryRTNewDomain || ' UNION ' || v_queryRTNewDomainLess50000ReUsed;
+                            END;
+                    ELSE --Danh sách RT NHÓM INTERNET
+                            v_query:= '( :p_templateQuery )';
+                            v_query:= REPLACE(v_query , '${p_objId}' , ':p_objId');
+                            v_query:= REPLACE(v_query , '${p_kind1}' , ':p_kind1');
+                            v_query:= REPLACE(v_query , '${p_kind2}' , ':p_kind2');
+                            v_query:= REPLACE(v_query , '${p_parent}' , ':p_parent');
+                            v_query:= REPLACE(v_query , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_query:= REPLACE(v_query , '${p_objIdReUsed}' , -1);
+                    END IF;
+                END;
+            END IF;
+            --ADD THEM RT DA DUNG
+            --Tài nguyên đã cấp phát  
+            --Tài nguyên phải cùng loại dịch vụ  
+             --Tài nguyên RT thì không phân biệt vùng miền  
+            IF(LENGTH(v_query) > 0)
+            THEN
+                    v_query:=v_query || ' UNION ';
+            ELSE 
+                    v_query:='';
+            END IF;
+                
+            v_query:= v_query || 
+            '(
+            SELECT r.ObjID,r.ContractC,r.Code,r.Name,r.Kind1,r.Kind2,r.TypeID,r.TypeName  
+            FROM FLL.NOCReSource r
+            INNER JOIN  
+                (  
+                    SELECT r.Code,r.Name,r.Kind1,r.Kind2,r.TypeID,r.TypeName,MIN(r.ID) as ID  
+                    FROM FLL.NOCReSource r
+                    WHERE r.Kind1=:p_kind1
+                    and r.Kind2=:p_kind2
+                       and r.ServiceTypeID=:p_serviceTypeId --Loại dịch vụ  
+                    and r.ObjID!=:p_objId
+                    and r.ObjID!=0
+                    and (r.Parent=:p_parent or r.Kind1=3)
+                    GROUP BY r.Code,r.Name,r.Kind1,r.Kind2,r.TypeID,r.TypeName  
+                )r2 ON r.ID=r2.ID  
+            )';
+            BEGIN
+                dbms_output.put_line(v_query);
+                cursor_name := DBMS_SQL.OPEN_CURSOR;
+                DBMS_SQL.PARSE(cursor_name, v_query, DBMS_SQL.NATIVE);
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_templateQuery', v_templateQuery);
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_parent', p_parent);
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_objId', p_objId);          
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_kind1', p_kind1);     
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_kind2', p_kind2);     
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_serviceTypeId', p_serviceTypeId);     
+                        
+                ROWS_PROCESSED := DBMS_SQL.EXECUTE(cursor_name);        
+                p_Result := DBMS_SQL.TO_REFCURSOR(cursor_name);
+                EXCEPTION WHEN NO_DATA_FOUND THEN CLOSE p_Result;
+                            WHEN OTHERS THEN CLOSE p_Result;
+            END;
+        END;
+    ELSE --Free = 1: Tài nguyên mới
+            v_templateQuery:= 
+            '(SELECT r.ObjID,r.ContractC,r.Code,r.Name,r.Kind1,r.Kind2,r.TypeID,r.TypeName
+			FROM FLL.NOCReSource r
+			WHERE r.ObjID=:p_objId and r.Kind1=:p_kind1 and r.Kind2=:p_kind2 and r.Parent=${p_parent})';
+            v_templateQuery:= REPLACE(v_templateQuery, '${p_parent}' , '''' || p_parent || '''');
+            
+            IF(p_kind1 = 1) --Lọc IPv4 chưa cấp phát
+            THEN
+                v_query:= '' || v_templateQuery || ' UNION ' ||
+                'SELECT
+				null as objId,null as ContractC ,t1.ID as Code, TO_NCHAR(t1.IP )as Name,
+				:p_kind1 as Kind1,:p_kind2 as Kind2 ,t1.TypeID, t2.TypeName
+                FROM FLL.NOCReS_IPv4 t1
+                INNER JOIN FLL.NOCReS_IPv4_Type t2 on t1.TypeID=t2.ID
+				and t1.objId IN (0,-1)
+				and t1.Parent=${p_parent}
+				and t2.type=:p_kind2
+				and t1.ServiceTypeId=:p_serviceTypeId
+                ';
+                v_query:= REPLACE(v_query, '${p_parent}' , '''' || p_parent || '''');
+            END IF;
+            
+            IF(p_kind1 = 2) --Lọc IPv6 chưa cấp phát
+            THEN
+                v_query:= '' || v_templateQuery || ' UNION ' ||
+                'SELECT
+				null as objId,null as ContractC ,t1.ID as Code,TO_NCHAR(t1.IP )as Name,
+				:p_kind1 as Kind1,:p_kind2 as Kind2,t1.TypeID,t2.TypeName
+                FROM FLL.NOCReS_IPv6 t1
+                INNER JOIN FLL.NOCReS_IPv6_Type t2 on t1.TypeID=t2.ID
+				and t1.objId IN (0,-1)
+				and t1.Parent=${p_parent}
+				and t2.type=:p_kind2
+				and t1.ServiceTypeId=:p_serviceTypeId
+                ';
+                v_query:= REPLACE(v_query, '${p_parent}' , '''' || p_parent || '''');
+            END IF;
+            
+            IF(p_kind1 = 3) --Lọc RT chưa cấp phát
+            THEN
+                v_query:= '' || v_templateQuery || ' UNION ' ||
+                'SELECT null as ObjId,null as ContractC ,t1.ID as Code,TO_NCHAR(t1.RT)  as Name,:p_kind1 as Kind1,:p_kind2 as Kind2,t1.TypeID,t2.TypeName
+				FROM FLL.NOCReS_RT t1
+				INNER JOIN FLL.NOCReS_RT_Type t2 on t1.TypeID=t2.ID
+					and t1.objId IN (0,-1)
+					and t2.type=:p_kind2
+					and t1.ServiceTypeId=:p_serviceTypeId
+                ';
+                
+                IF(p_serviceTypeId = 91) --Nếu là MPLS Layer 2 chỉ lấy RT >= 27800 
+                THEN
+                    v_query:= v_query ||' AND TO_NUMBER(t1.RT) > 27799';
+                ELSIF(p_serviceTypeId = 101) --Nếu là MPLS Layer 3 chỉ lấy RT >= 50000 
+                THEN
+                    v_query:= v_query ||' AND TO_NUMBER(t1.RT) > 49999';
+                ELSE --Ngược lại là Internet
+                    IF(p_kind2 = 4) --Nếu là RT line NIX thì lấy RT >= 29050
+                    THEN
+                        v_query:= v_query || ' AND TO_NUMBER(t1.RT) >= 29050';
+                    END IF;
+                END IF;
+            END IF;
+            
+            IF(LENGTH(p_typeIds) > 0 AND p_kind1 != 3)
+            THEN
+                v_query:= v_query || ' AND t1.TypeID in('|| p_typeIds || ')';
+            END IF;
+            
+            BEGIN
+                dbms_output.put_line(v_query);
+                cursor_name := DBMS_SQL.OPEN_CURSOR;
+                DBMS_SQL.PARSE(cursor_name, v_query, DBMS_SQL.NATIVE);
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_objId', p_objId);          
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_kind1', p_kind1);     
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_kind2', p_kind2);     
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_serviceTypeId', p_serviceTypeId);     
+                ROWS_PROCESSED := DBMS_SQL.EXECUTE(cursor_name);        
+                p_Result := DBMS_SQL.TO_REFCURSOR(cursor_name);
+                EXCEPTION WHEN NO_DATA_FOUND THEN CLOSE p_Result;
+                    WHEN OTHERS THEN CLOSE p_Result;
+            END;
+    END IF;
+  END SU8R_NOCReS_IPv4_IPv6_RT_GET;
+
+/*SU8R_NOCReS_IPv4_IPv6_RT_GET_V2 21/05/2021*/
+
+PROCEDURE SU8R_NOCReS_IPv4_IPv6_RT_GET_V2(
+    p_parent IN VARCHAR2,
+    p_objId IN number,
+    p_kind1 int,
+    p_kind2 int,
+    p_serviceTypeId int,
+    p_typeIds varchar2,
+    p_free int,
+    p_result OUT SYS_REFCURSOR
+  )
+  AS
+  v_query varchar2(8000);
+  v_templateQuery varchar2(1000) := '';
+  cursor_name INT;
+  ROWS_PROCESSED INTEGER;
+  BEGIN 
+    IF(p_free = 0)
+    THEN
+        BEGIN
+            --Đối với RT: load danh sách dùng lại từ NOCReS_RT bên PhongNC quản lý
+            IF(p_kind1 = 3)
+            THEN
+                BEGIN
+                    v_templateQuery:='
+                    SELECT r.objid,r.ContractC,r.Code,r.Name,r.Kind1,r.Kind2,r.TypeID,r.TypeName
+                    FROM FLL.NOCReSource r 
+                    WHERE r.ObjID=${p_objId} and r.Kind1=${p_kind1} and r.Kind2=${p_kind2} and r.Parent=${p_parent}        
+                    UNION 
+                    SELECT ObjID,null as ContractC,t1.ID as Code,TO_NCHAR(t1.RT) as Name,${p_kind1} as Kind1,${p_kind2} as Kind2,t1.TypeID,t2.TypeName
+                    FROM FLL.NOCReS_RT t1
+                    INNER JOIN FLL.NOCReS_RT_Type t2 on t1.TypeID=t2.ID
+                    AND t1.objId=${p_objIdReUsed}
+                    AND t2.type=${p_kind2}
+                    AND t1.ServiceTypeId=${p_serviceTypeId}
+                    ';
+                    IF(p_serviceTypeId = 91)  --ĐỐI VỚI LOẠI MPLS LAYER 2: THÌ GOM CHUNG 2 LOẠI THÀNH 1
+                    THEN
+                            DECLARE
+                            --LIST NOC RT OLD
+                            v_queryNOCRTOld varchar2(1000);
+                            --LIST NOC RT NEW
+                            v_queryNOCRTNew varchar2(1000);
+                            --Đưa tài nguyên RT Old Domain xuống RT New Domain dùng lại
+                            v_queryNOCRTOldDomain varchar2(1000);
+                            --Đưa tài nguyên RT New Domain < 27800 xuống RT New Domain dùng lại
+                            v_queryNOCRTNewDomainLess27800 varchar2(1000);
+                            BEGIN
+                        
+                            --LIST NOC RT OLD
+                            --v_queryNOCRTOld:= '( :p_templateQuery )';-- old code
+                            v_queryNOCRTOld:= '(' ||v_templateQuery || ')';-- new code 21/05/2021
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_objId}' , ':p_objId');
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_kind1}' , ':p_kind1');
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_kind2}' , 1);
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_parent}' , ':p_parent');
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryNOCRTOld:= REPLACE(v_queryNOCRTOld , '${p_objIdReUsed}' , -1);                       
+                            
+                            --LIST NOC RT NEW
+                            --v_queryNOCRTNew:= '( :p_templateQuery )';--old code
+                            v_queryNOCRTNew:= '(' ||v_templateQuery || ')';-- new code 21/05/2021
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_objId}' , ':p_objId');
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_kind1}' , ':p_kind1');
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_kind2}' , 2);
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_parent}' , ':p_parent');
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryNOCRTNew:= REPLACE(v_queryNOCRTNew , '${p_objIdReUsed}' , -1);               
+
+                            --Đưa tài nguyên RT Old Domain xuống RT New Domain dùng lại
+                            --v_queryNOCRTOldDomain:= '( :p_templateQuery )';--old code
+                            v_queryNOCRTOldDomain:= '(' ||v_templateQuery || ')';-- new code 21/05/2021
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_objId}' , ':p_objId');
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_kind1}' , ':p_kind1');
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_kind2}' , 1);
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_parent}' , ':p_parent');
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryNOCRTOldDomain:= REPLACE(v_queryNOCRTOldDomain , '${p_objIdReUsed}' , 0);
+                            
+                             --Đưa tài nguyên RT New Domain < 27800 xuống RT New Domain dùng lại
+                            --v_queryNOCRTNewDomainLess27800:= '( :p_templateQuery AND TO_NUMBER(t1.RT) < 27800' || ' )'; -- old code
+                            v_queryNOCRTNewDomainLess27800:= '(' ||v_templateQuery ||' AND TO_NUMBER(t1.RT) < 27800 )'; --new code 21/05/2021
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_objId}' , ':p_objId');
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_kind1}' , ':p_kind1');
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_kind2}' , 2);
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_parent}' , ':p_parent');
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryNOCRTNewDomainLess27800:= REPLACE(v_queryNOCRTNewDomainLess27800 , '${p_objIdReUsed}' ,0);
+                            
+                            v_query:= v_queryNOCRTOld || ' UNION ' || v_queryNOCRTNew || ' UNION ' || v_queryNOCRTOldDomain || ' UNION ' || v_queryNOCRTNewDomainLess27800;
+                            END;
+                    ELSIF (p_serviceTypeId = 101)  --MPLS Layer 3
+                    THEN
+                            DECLARE
+                                v_queryRTNewDomain varchar2(1000);
+                                v_queryRTNewDomainLess50000ReUsed varchar2(1000);
+                            BEGIN
+                            --List RT New Domain
+                            --v_queryRTNewDomain:= '( :p_templateQuery )'; --old code
+                            v_queryRTNewDomain:= '(' ||v_templateQuery || ')';-- new code 21/05/2021
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_objId}' , ':p_objId');
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_kind1}' , ':p_kind1');
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_kind2}' , ':p_kind2');
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_parent}' , ':p_parent');
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryRTNewDomain:= REPLACE(v_queryRTNewDomain , '${p_objIdReUsed}' , '-1');
+
+                            --Query lấy dữ liệu RT New Domain < 50000
+                            --Đưa tài nguyên RT New Domain < 50000 xuống RT New Domain dùng lại
+                            --v_queryRTNewDomainLess50000ReUsed:= '( :p_templateQuery AND TO_NUMBER(t1.RT) < 50000' || ' )';--old code
+                            v_queryRTNewDomainLess50000ReUsed:=  '('|| v_templateQuery ||'AND TO_NUMBER(t1.RT) < 50000 )';-- new code 21/05/2021
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_objId}' , ':p_objId');
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_kind1}' , ':p_kind1');
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_kind2}' , 2);
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_parent}' , ':p_parent');
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_queryRTNewDomainLess50000ReUsed:= REPLACE(v_queryRTNewDomainLess50000ReUsed , '${p_objIdReUsed}' ,0);
+                            v_query:= v_queryRTNewDomain || ' UNION ' || v_queryRTNewDomainLess50000ReUsed;
+                            END;
+                    ELSE --Danh sách RT NHÓM INTERNET
+                            --v_query:= '( :p_templateQuery )';-- old code
+                            v_query:= '(' ||v_templateQuery || ')';-- new code 21/05/2021
+                            v_query:= REPLACE(v_query , '${p_objId}' , ':p_objId');
+                            v_query:= REPLACE(v_query , '${p_kind1}' , ':p_kind1');
+                            v_query:= REPLACE(v_query , '${p_kind2}' , ':p_kind2');
+                            v_query:= REPLACE(v_query , '${p_parent}' , ':p_parent');
+                            v_query:= REPLACE(v_query , '${p_serviceTypeId}' , ':p_serviceTypeId');
+                            v_query:= REPLACE(v_query , '${p_objIdReUsed}' , -1);
+                    END IF;
+                END;
+            END IF;
+            --ADD THEM RT DA DUNG
+            --Tài nguyên đã cấp phát  
+            --Tài nguyên phải cùng loại dịch vụ  
+             --Tài nguyên RT thì không phân biệt vùng miền  
+            IF(LENGTH(v_query) > 0)
+            THEN
+                    v_query:=v_query || ' UNION ';
+            ELSE 
+                    v_query:='';
+            END IF;
+                
+            v_query:= v_query || 
+            '(
+            SELECT r.ObjID,r.ContractC,r.Code,r.Name,r.Kind1,r.Kind2,r.TypeID,r.TypeName  
+            FROM FLL.NOCReSource r
+            INNER JOIN  
+                (  
+                    SELECT r.Code,r.Name,r.Kind1,r.Kind2,r.TypeID,r.TypeName,MIN(r.ID) as ID  
+                    FROM FLL.NOCReSource r
+                    WHERE r.Kind1=:p_kind1
+                    and r.Kind2=:p_kind2
+                       and r.ServiceTypeID=:p_serviceTypeId --Loại dịch vụ  
+                    and r.ObjID!=:p_objId
+                    and r.ObjID!=0
+                    and (r.Parent=:p_parent or r.Kind1=3)
+                    GROUP BY r.Code,r.Name,r.Kind1,r.Kind2,r.TypeID,r.TypeName  
+                )r2 ON r.ID=r2.ID  
+            )';
+            BEGIN
+                dbms_output.put_line('v_query' || v_query);
+                cursor_name := DBMS_SQL.OPEN_CURSOR;
+                DBMS_SQL.PARSE(cursor_name, v_query, DBMS_SQL.NATIVE);
+                /*if(v_templateQuery != '') then
+                 DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_templateQuery', v_templateQuery);
+                end if;*/
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_parent', p_parent);
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_objId', p_objId);          
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_kind1', p_kind1);     
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_kind2', p_kind2);     
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_serviceTypeId', p_serviceTypeId);     
+                        
+                ROWS_PROCESSED := DBMS_SQL.EXECUTE(cursor_name);        
+                p_Result := DBMS_SQL.TO_REFCURSOR(cursor_name);
+                EXCEPTION WHEN NO_DATA_FOUND THEN CLOSE p_Result;
+                            WHEN OTHERS THEN CLOSE p_Result;
+            END;
+        END;
+    ELSE --Free = 1: Tài nguyên mới
+            v_templateQuery:= 
+            '(SELECT r.ObjID,r.ContractC,r.Code,r.Name,r.Kind1,r.Kind2,r.TypeID,r.TypeName
+			FROM FLL.NOCReSource r
+			WHERE r.ObjID=:p_objId and r.Kind1=:p_kind1 and r.Kind2=:p_kind2 and r.Parent=${p_parent})';
+            v_templateQuery:= REPLACE(v_templateQuery, '${p_parent}' , '''' || p_parent || '''');
+            
+            IF(p_kind1 = 1) --Lọc IPv4 chưa cấp phát
+            THEN
+                v_query:= '' || v_templateQuery || ' UNION ' ||
+                'SELECT
+				null as objId,null as ContractC ,t1.ID as Code, TO_NCHAR(t1.IP )as Name,
+				:p_kind1 as Kind1,:p_kind2 as Kind2 ,t1.TypeID, t2.TypeName
+                FROM FLL.NOCReS_IPv4 t1
+                INNER JOIN FLL.NOCReS_IPv4_Type t2 on t1.TypeID=t2.ID
+				and t1.objId IN (0,-1)
+				and t1.Parent=${p_parent}
+				and t2.type=:p_kind2
+				and t1.ServiceTypeId=:p_serviceTypeId
+                ';
+                v_query:= REPLACE(v_query, '${p_parent}' , '''' || p_parent || '''');
+            END IF;
+            
+            IF(p_kind1 = 2) --Lọc IPv6 chưa cấp phát
+            THEN
+                v_query:= '' || v_templateQuery || ' UNION ' ||
+                'SELECT
+				null as objId,null as ContractC ,t1.ID as Code,TO_NCHAR(t1.IP )as Name,
+				:p_kind1 as Kind1,:p_kind2 as Kind2,t1.TypeID,t2.TypeName
+                FROM FLL.NOCReS_IPv6 t1
+                INNER JOIN FLL.NOCReS_IPv6_Type t2 on t1.TypeID=t2.ID
+				and t1.objId IN (0,-1)
+				and t1.Parent=${p_parent}
+				and t2.type=:p_kind2
+				and t1.ServiceTypeId=:p_serviceTypeId
+                ';
+                v_query:= REPLACE(v_query, '${p_parent}' , '''' || p_parent || '''');
+            END IF;
+            
+            IF(p_kind1 = 3) --Lọc RT chưa cấp phát
+            THEN
+                v_query:= '' || v_templateQuery || ' UNION ' ||
+                'SELECT null as ObjId,null as ContractC ,t1.ID as Code,TO_NCHAR(t1.RT)  as Name,:p_kind1 as Kind1,:p_kind2 as Kind2,t1.TypeID,t2.TypeName
+				FROM FLL.NOCReS_RT t1
+				INNER JOIN FLL.NOCReS_RT_Type t2 on t1.TypeID=t2.ID
+					and t1.objId IN (0,-1)
+					and t2.type=:p_kind2
+					and t1.ServiceTypeId=:p_serviceTypeId
+                ';
+                
+                IF(p_serviceTypeId = 91) --Nếu là MPLS Layer 2 chỉ lấy RT >= 27800 
+                THEN
+                    v_query:= v_query ||' AND TO_NUMBER(t1.RT) > 27799';
+                ELSIF(p_serviceTypeId = 101) --Nếu là MPLS Layer 3 chỉ lấy RT >= 50000 
+                THEN
+                    v_query:= v_query ||' AND TO_NUMBER(t1.RT) > 49999';
+                ELSE --Ngược lại là Internet
+                    IF(p_kind2 = 4) --Nếu là RT line NIX thì lấy RT >= 29050
+                    THEN
+                        v_query:= v_query || ' AND TO_NUMBER(t1.RT) >= 29050';
+                    END IF;
+                END IF;
+            END IF;
+            
+            IF(LENGTH(p_typeIds) > 0 AND p_kind1 != 3)
+            THEN
+                v_query:= v_query || ' AND t1.TypeID in('|| p_typeIds || ')';
+            END IF;
+            
+            BEGIN
+                dbms_output.put_line(v_query);
+             
+                cursor_name := DBMS_SQL.OPEN_CURSOR;
+                DBMS_SQL.PARSE(cursor_name, v_query, DBMS_SQL.NATIVE);
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_objId', p_objId);          
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_kind1', p_kind1);     
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_kind2', p_kind2);     
+                DBMS_SQL.BIND_VARIABLE(cursor_name, ':p_serviceTypeId', p_serviceTypeId);     
+                ROWS_PROCESSED := DBMS_SQL.EXECUTE(cursor_name);        
+                p_Result := DBMS_SQL.TO_REFCURSOR(cursor_name);
+                EXCEPTION WHEN NO_DATA_FOUND THEN CLOSE p_Result;
+                    WHEN OTHERS THEN CLOSE p_Result;
+            END;
+    END IF;
+  END SU8R_NOCReS_IPv4_IPv6_RT_GET_V2;
+  
+ /*******************************************************************************
+    ' Description: lay tat ca type bao gom ipv4 , ipv6, rt types
+    ' Author: ThatNN@fpt.com.vn
+    ' Created Date: 02/02/2021
+    VARIABLE p_RESULT refcursor;
+    Exec FLL.SU8_PKG_NOCRESOURCE.SU8R_NOCReS_IPv4_IPv6_RT_Type_GET(1,1,1, :p_RESULT);
+    print p_RESULT;
+    
+    --NOCReS_IPv4_IPv6_RT_Type_GET @ResourceType=1,@Type=1,@Kind=1
+/*********************************************************************
+@ResourceType	: IPv4=1, IPv6=2, RT=3
+@Type			:
+	IPFront = 1, RTOld = 1
+	, IPRoute = 2, RTNew = 2
+	, RTSiteHub = 3
+	, RTLineNIX = 4
+	, RTLineGIA = 5
+@Kind			: {1=Nhóm Internet},{2: Layer 2},{3: Layer 3}
+
+*******************************************************************************/  
+ PROCEDURE SU8R_NOCReS_IPv4_IPv6_RT_Type_GET(
+    p_resourceType IN int,
+    p_type IN int,
+    p_kind IN int DEFAULT 1,
+    p_result OUT SYS_REFCURSOR
+ )
+ AS 
+ BEGIN
+    /**************|Lọc IPv4|**************/
+        IF(p_resourceType=1)
+        THEN
+        OPEN p_result 
+        FOR
+            SELECT t2.ID,t2.TypeName,t2.type
+            FROM FLL.NOCReS_IPv4_Type t2
+            where t2.type=p_type and t2.Kind=p_kind;
+        END IF;
+        
+        /**************|Lọc IPv6|**************/
+        IF(p_resourceType=2)
+        THEN
+        OPEN p_result
+        FOR
+            SELECT t2.ID,t2.TypeName,t2.type
+            FROM FLL.NOCReS_IPv6_Type t2
+            where t2.type=p_type and t2.Kind=p_kind;
+        END IF;
+        
+        /**************|Lọc RT|**************/
+        IF(p_resourceType=3)
+        THEN
+        OPEN p_result
+        FOR
+            SELECT t2.ID,t2.TypeName,t2.type
+            FROM NOCReS_RT_Type t2
+            WHERE t2.type=p_type and t2.Kind=p_kind;
+        END IF;
+    EXCEPTION WHEN NO_DATA_FOUND THEN CLOSE p_Result;
+        WHEN OTHERS THEN CLOSE p_Result;
+     END SU8R_NOCReS_IPv4_IPv6_RT_Type_GET;
+     
+ 
+ /*******************************************************************************
+    ' Description: check cac resource dau vao da dc cap phat cho hd nao chua ( [result] > 0 -> co [result] resource da duoc cap phat)
+    ' Author: ThatNN@fpt.com.vn
+    ' Created Date: 02/02/2021
+    VARIABLE p_RESULT NUMBER;
+    Exec FLL.SU8_PKG_NOCRESOURCE.SU8R_NOCRReS_CHECK_ALLOCATED('<ArrayOfNOCResourceModel><NOCResourceModel><ObjId>1034804102</ObjId><ContractC>SGLL22824</ContractC><Parent>FTS</Parent><ServiceTypeId>91</ServiceTypeId><Code>590</Code><Name>50009</Name><TypeId>130</TypeId><TypeName>RT FTI-L3VPN-RT New Domain</TypeName><ReUsed>1</ReUsed><Kind1>3</Kind1><Kind2>2</Kind2></NOCResourceModel></ArrayOfNOCResourceModel>', :p_RESULT);
+    print p_RESULT;
+    *******************************************************************************/      
+ PROCEDURE SU8R_NOCRReS_CHECK_ALLOCATED(
+    p_nocResources IN CLOB,
+    p_result OUT NUMBER
+ )
+ AS
+ v_XMLType SYS.XMLType;
+ BEGIN
+    v_XMLType:= sys.xmltype.createXML(p_nocResources);
+        SELECT COUNT(*) INTO p_result
+        FROM
+            (SELECT  
+            TO_NUMBER(extractvalue(column_value , '/NOCResourceModel/ObjId/text()')) as ObjId,
+            TO_CHAR( extractvalue(column_value , '/NOCResourceModel/ContractC/text()')) as ContractC,
+            TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Parent/text()')) as Parent,
+            TO_CHAR( extractvalue(column_value , '/NOCResourceModel/ServiceTypeId/text()')) as ServiceTypeId,
+            TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code/text()')) as Code,
+            TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Name/text()')) as Name,
+            TO_NUMBER(extractvalue(column_value , '/NOCResourceModel/TypeId/text()')) as TypeId,
+            TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeName/text()')) as TypeName,
+            TO_NUMBER(extractvalue(column_value , '/NOCResourceModel/ReUsed/text()')) as ReUsed,
+            TO_NUMBER(extractvalue(column_value , '/NOCResourceModel/Kind1/text()')) as Kind1,
+            TO_NUMBER(extractvalue(column_value , '/NOCResourceModel/Kind2/text()')) as Kind2
+            FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCResourceModel/NOCResourceModel'))))
+        indata
+        INNER JOIN FLL.NOCRESOURCE  
+        ex 
+        ON indata.CODE = ex.Code AND indata.NAME = ex.NAME AND indata.REUSED = ex.REUSED AND indata.OBJID = ex.OBJID;
+        
+ END;
+
+ /*******************************************************************************
+    ' Description: Sau khi check resource oke, cap phat resource do cho hop dong
+    ' Author: ThatNN@fpt.com.vn
+    ' Created Date: 02/02/2021
+    VARIABLE p_RESULT refcursor;
+    Exec FLL.SU8_PKG_NOCRESOURCE.SU8W_NOCRES_ALLOCATE('<ArrayOfNOCResourceModel><NOCResourceModel><ObjId>1034804102</ObjId><ContractC>SGLL22824</ContractC><Parent>FTS</Parent><ServiceTypeId>91</ServiceTypeId><Code>590</Code><Name>50009</Name><TypeId>130</TypeId><TypeName>RT FTI-L3VPN-RT New Domain</TypeName><ReUsed>1</ReUsed><Kind1>3</Kind1><Kind2>2</Kind2></NOCResourceModel></ArrayOfNOCResourceModel>',1034804102,'runtest','27-JAN-21 04.17.20.000000000 PM', :p_RESULT);
+    print p_RESULT;
+    *******************************************************************************/   
+ PROCEDURE SU8W_NOCRES_ALLOCATE(
+    p_nocResources IN CLOB,
+    p_objId IN FLL.NOCRESOURCE.OBJID%TYPE,
+    p_updatedBy IN FLL.NOCRESOURCE.UPDATEDBY%TYPE,
+    p_updatedDate IN FLL.NOCRESOURCE.UPDATEDDATE%TYPE,
+    p_result OUT SYS_REFCURSOR
+ )
+ AS
+ v_XMLType SYS.XMLType;
+ v_deleteResourceCount NUMBER;
+ v_updateResourceCount NUMBER;
+ v_insertResourceCount NUMBER;
+ BEGIN
+ 
+    
+    v_XMLType:= sys.xmltype.createXML(p_nocResources);
+    v_deleteResourceCount:=0;
+    v_updateResourceCount:=0;
+    v_insertResourceCount:=0;
+    DELETE FROM FLL.NOCRESOURCE WHERE OBJID = p_objId;
+    v_deleteResourceCount:=SQL%ROWCOUNT;
+    
+    UPDATE FLL.NOCRES_IPV4 SET OBJID = 0 WHERE OBJID = p_objId;
+    v_updateResourceCount:=SQL%ROWCOUNT;
+    
+    /*****|Cập nhật các tài nguyên cũ dùng lại|*****/
+    
+    MERGE INTO FLL.NOCRESOURCE nr
+    USING 
+    (
+            SELECT snr.CODE FROM FLL.NOCRESOURCE 
+            snr
+             /*****|join de lay ra cac tai nguyen cu dang duoc dung lai|*****/
+            INNER JOIN 
+                (
+                    SELECT 
+                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Code')) as Code
+                    FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCReSourceModel/NOCReSourceModel')))
+                    WHERE TO_NUMBER(extractvalue(column_value , '/NOCReSourceModel/ReUsed')) = 1 AND TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Code')) NOT IN
+                    (
+                        /*****|Cac resource(Cap moi) bi cap phat trung phai duoc loai bo ra |*****/
+                        SELECT entraceData.CODE
+                        FROM
+                        (SELECT 
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/ObjId')) as ObjID,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/ContractC')) as ContractC,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Code')) as Code,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Name')) as Name,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Kind1')) as Kind1,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Kind2')) as Kind2,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/TypeId')) as TypeId,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/TypeName')) as TypeName,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Parent')) as Parent,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/ServiceTypeId')) as ServiceTypeId,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/ChangeType')) as ChangeType,
+                        TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/ReUsed')) as ReUsed
+                        FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCReSourceModel/NOCReSourceModel'))))
+                        entraceData
+                        INNER JOIN (SELECT ID,OBJID,CODE,NAME,KIND1,KIND2, TYPEID, PARENT, SERVICETYPEID, REUSED FROM FLL.NOCRESOURCE)
+                        existedData ON entraceData.CODE = existedData.CODE AND entraceData.Name = existedData.Name AND existedData.ReUsed = 0
+                        WHERE entraceData.ReUsed = 0
+                    )
+                ) 
+            sEntrace ON snr.Code = sEntrace.Code
+    ) reused 
+    ON(nr.CODE = reused.CODE) 
+    WHEN MATCHED THEN UPDATE SET nr.ReUsed = 1;
+--    /*****|Cập nhật các tài nguyên cũ dùng lại|*****/
+--    UPDATE FLL.NOCRESOURCE nr
+--    SET nr.ReUsed = 1
+--    WHERE
+--    nr.CODE
+--    IN
+--    (
+--        SELECT snr.CODE FROM FLL.NOCRESOURCE 
+--        snr
+--         /*****|join de lay ra cac tai nguyen cu dang duoc dung lai|*****/
+--        INNER JOIN 
+--            (
+--                SELECT 
+--                TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Code')) as Code
+--                FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCReSourceModel/NOCReSourceModel')))
+--                WHERE TO_NUMBER(extractvalue(column_value , '/NOCReSourceModel/ReUsed')) = 1 AND TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Code')) NOT IN
+--                (
+--                    /*****|Cac resource(Cap moi) bi cap phat trung phai duoc loai bo ra |*****/
+--                    SELECT entraceData.CODE
+--                    FROM
+--                    (SELECT 
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/ObjId')) as ObjID,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/ContractC')) as ContractC,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Code')) as Code,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Name')) as Name,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Kind1')) as Kind1,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Kind2')) as Kind2,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/TypeId')) as TypeId,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/TypeName')) as TypeName,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/Parent')) as Parent,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/ServiceTypeId')) as ServiceTypeId,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/ChangeType')) as ChangeType,
+--                    TO_CHAR(extractvalue(column_value , '/NOCReSourceModel/ReUsed')) as ReUsed
+--                    FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCReSourceModel/NOCReSourceModel'))))
+--                    entraceData
+--                    INNER JOIN (SELECT ID,OBJID,CODE,NAME,KIND1,KIND2, TYPEID, PARENT, SERVICETYPEID, REUSED FROM FLL.NOCRESOURCE)
+--                    existedData ON entraceData.CODE = existedData.CODE AND entraceData.Name = existedData.Name AND existedData.ReUsed = 0
+--                    WHERE entraceData.ReUsed = 0
+--                )
+--            ) 
+--        sEntrace ON snr.Code = sEntrace.Code
+--    );
+--    
+   -- nocReSource (ghi lai lich su su dung)
+    -- ipv4, ipv6, rt la danh muc cac tai nguyen co the su dung
+  
+    DECLARE 
+    tmp_targetId number;
+    tmp_objId number;
+    tmp_typeId number;
+    tmp_parent varchar2(10);
+    tmp_serviceTypeId number;
+   
+     /*****|Cap nhat lai danh sach tai nguyen IPv4 |*****/
+    CURSOR c_to_synz_ipv4
+    IS 
+    SELECT TO_NUMBER(NVL(ipv4.Code , '-1')) as Id , TO_NUMBER(NVL(ipv4.objId, '-1')) as ObjId, TO_NUMBER( NVL(ipv4.TypeId, '-1')) as TypeId , ipv4.Parent, TO_NUMBER(NVL(ipv4.ServiceTypeId , '-1')) as ServiceTypeId
+    FROM 
+        (
+                SELECT 
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ObjId')) as ObjID,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) as Code,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind1')) as Kind1,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeId')) as TypeId,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Parent')) as Parent,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ServiceTypeId')) as ServiceTypeId
+                FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCResourceModel/NOCResourceModel')))
+                WHERE 
+                -- chi lay ra ipv4
+                TO_NUMBER(extractvalue(column_value , '/NOCResourceModel/Kind1'))  = 1 AND
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) NOT IN
+                (
+                    SELECT entraceData.CODE
+                    FROM
+                    (SELECT 
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ObjId')) as ObjID,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ContractC')) as ContractC,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) as Code,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Name')) as Name,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind1')) as Kind1,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind2')) as Kind2,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeId')) as TypeId,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeName')) as TypeName,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Parent')) as Parent,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ServiceTypeId')) as ServiceTypeId,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ChangeType')) as ChangeType,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ReUsed')) as ReUsed
+                    FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCResourceModel/NOCResourceModel'))))
+                    entraceData
+                    INNER JOIN (SELECT ID,OBJID,CODE,NAME,KIND1,KIND2, TYPEID, PARENT, SERVICETYPEID, REUSED FROM FLL.NOCRESOURCE)
+                    existedData ON entraceData.CODE = existedData.CODE AND entraceData.Name = existedData.Name AND existedData.ReUsed = 0
+                    WHERE entraceData.ReUsed = 0
+                )
+        )
+    ipv4;
+   
+    /*****|Cap nhat lai danh sach tai nguyen IPv6 |*****/
+    CURSOR c_to_synz_ipv6
+    IS 
+    SELECT TO_NUMBER(NVL(ipv6.Code , '-1')) as Id , TO_NUMBER(NVL(ipv6.objId, '-1')) as ObjId, TO_NUMBER( NVL(ipv6.TypeId, '-1')) as TypeId , ipv6.Parent, TO_NUMBER(NVL(ipv6.ServiceTypeId , '-1'))
+    FROM 
+        (
+                SELECT 
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ObjId')) as ObjID,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) as Code,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind1')) as Kind1,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeId')) as TypeId,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Parent')) as Parent,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ServiceTypeId')) as ServiceTypeId
+                FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCResourceModel/NOCResourceModel')))
+                WHERE 
+                -- chi lay ra ipv6
+                TO_NUMBER(extractvalue(column_value , '/NOCResourceModel/Kind1'))  = 2 AND
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) NOT IN
+                (
+                    SELECT entraceData.CODE
+                    FROM
+                    (SELECT 
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ObjId')) as ObjID,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ContractC')) as ContractC,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) as Code,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Name')) as Name,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind1')) as Kind1,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind2')) as Kind2,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeId')) as TypeId,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeName')) as TypeName,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Parent')) as Parent,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ServiceTypeId')) as ServiceTypeId,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ChangeType')) as ChangeType,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ReUsed')) as ReUsed
+                    FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCResourceModel/NOCResourceModel'))))
+                    entraceData
+                    INNER JOIN (SELECT ID,OBJID,CODE,NAME,KIND1,KIND2, TYPEID, PARENT, SERVICETYPEID, REUSED FROM FLL.NOCRESOURCE)
+                    existedData ON entraceData.CODE = existedData.CODE AND entraceData.Name = existedData.Name AND existedData.ReUsed = 0
+                    WHERE entraceData.ReUsed = 0
+                )
+        )
+    ipv6; 
+    
+    /*****|Cap nhat lai danh sach tai nguyen RT |*****/
+    CURSOR c_to_synz_rt
+    IS
+    SELECT TO_NUMBER(NVL(rt.Code , '-1')) as Id , TO_NUMBER(NVL(rt.objId, '-1')) as ObjId, TO_NUMBER( NVL(rt.TypeId, '-1')) as TypeId , rt.Parent, TO_NUMBER(NVL(rt.ServiceTypeId , '-1'))
+    FROM
+         (
+                SELECT 
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ObjId')) as ObjID,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) as Code,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind1')) as Kind1,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeId')) as TypeId,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Parent')) as Parent,
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ServiceTypeId')) as ServiceTypeId
+                FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCResourceModel/NOCResourceModel')))
+                WHERE 
+                -- chi lay ra RT
+                TO_NUMBER(extractvalue(column_value , '/NOCResourceModel/Kind1'))  = 3 AND
+                TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) NOT IN
+                (
+                    SELECT entraceData.CODE
+                    FROM
+                    (SELECT 
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ObjId')) as ObjID,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ContractC')) as ContractC,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) as Code,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Name')) as Name,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind1')) as Kind1,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind2')) as Kind2,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeId')) as TypeId,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeName')) as TypeName,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Parent')) as Parent,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ServiceTypeId')) as ServiceTypeId,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ChangeType')) as ChangeType,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ReUsed')) as ReUsed
+                    FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCResourceModel/NOCResourceModel'))))
+                    entraceData
+                    INNER JOIN (SELECT ID,OBJID,CODE,NAME,KIND1,KIND2, TYPEID, PARENT, SERVICETYPEID, REUSED FROM FLL.NOCRESOURCE)
+                    existedData ON entraceData.CODE = existedData.CODE AND entraceData.Name = existedData.Name AND existedData.ReUsed = 0
+                    WHERE entraceData.ReUsed = 0
+                )
+        )
+    rt; 
+   
+    
+   BEGIN
+        /*****|Cap nhat lai danh sach tai nguyen IPv4 |*****/
+        BEGIN
+            OPEN c_to_synz_ipv4;
+            LOOP
+                FETCH  c_to_synz_ipv4  INTO tmp_targetId, tmp_objId, tmp_typeId, tmp_parent, tmp_serviceTypeId;
+                EXIT WHEN c_to_synz_ipv4%NOTFOUND; 
+                    UPDATE FLL.NOCRES_IPV4
+                    SET 
+                    OBJID = tmp_objId,
+                    USERLOG = p_updatedBy,
+                    DateLog = p_updatedDate 
+                    WHERE 
+                    ID = tmp_targetId AND
+                    TYPEID = tmp_typeId AND
+                    PARENT = tmp_parent AND
+                    ServiceTypeId = tmp_serviceTypeId AND
+                    OBJID IN(0,-1);
+            END LOOP;
+--            EXCEPTION
+--            WHEN NO_DATA_FOUND THEN
+--                 CLOSE c_to_synz_ipv4;
+        END;
+        
+        /*****|Cap nhat lai danh sach tai nguyen IPv6 |*****/
+        BEGIN
+            OPEN c_to_synz_ipv6;
+            LOOP
+                FETCH  c_to_synz_ipv6  INTO tmp_targetId, tmp_objId, tmp_typeId, tmp_parent, tmp_serviceTypeId;
+                EXIT WHEN c_to_synz_ipv6%NOTFOUND; 
+                    UPDATE FLL.NOCRES_IPV6
+                    SET 
+                    OBJID = tmp_objId,
+                    USERLOG = p_updatedBy,
+                    DateLog = p_updatedDate 
+                    WHERE 
+                    ID = tmp_targetId AND
+                    TYPEID = tmp_typeId AND
+                    PARENT = tmp_parent AND
+                    ServiceTypeId = tmp_serviceTypeId AND
+                    OBJID IN(0,-1);
+            END LOOP;
+--            EXCEPTION
+--            WHEN NO_DATA_FOUND THEN
+--                 CLOSE c_to_synz_ipv6;
+        END;
+        
+        /*****|Cap nhat lai danh sach tai nguyen RT |*****/
+        BEGIN
+            OPEN c_to_synz_rt;
+            LOOP
+                FETCH  c_to_synz_rt  INTO tmp_targetId, tmp_objId, tmp_typeId, tmp_parent, tmp_serviceTypeId;
+                EXIT WHEN c_to_synz_rt%NOTFOUND; 
+                    UPDATE FLL.NOCRES_RT
+                    SET 
+                    OBJID = tmp_objId,
+                    USERLOG = p_updatedBy,
+                    DateLog = p_updatedDate 
+                    WHERE
+                    ID = tmp_targetId AND
+                    TYPEID = tmp_typeId AND
+                    ServiceTypeId = tmp_serviceTypeId AND
+                    OBJID IN(0,-1);
+            END LOOP;
+--            EXCEPTION
+--            WHEN NO_DATA_FOUND THEN
+--                 CLOSE c_to_synz_rt;
+        END;
+   END;
+  
+   
+   
+    /***************|Insert tat ca cac tai nguyen bao gom dung lai va dung moi vao bang(tat nhien la phai loai bo tat ca resource cap phat trung)|***************/
+    INSERT INTO FLL.NOCRESOURCE(OBJID,CONTRACTC,CODE,NAME,KIND1,KIND2,TYPEID,TYPENAME,PARENT,SERVICETYPEID,REUSED,UPDATEDDATE,UPDATEDBY)
+    SELECT ObjId, ContractC, Code, Name, Kind1, Kind2, TypeId, TypeName, Parent, ServiceTypeId, ReUsed, p_updatedDate , p_updatedBy
+    FROM 
+    (
+                /*****|Cac resource can duoc cap(bao gom reUsed va cap moi) |*****/
+                SELECT 
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ObjId')) as ObjID,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ContractC')) as ContractC,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) as Code,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Name')) as Name,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind1')) as Kind1,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind2')) as Kind2,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeId')) as TypeId,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeName')) as TypeName,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Parent')) as Parent,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ServiceTypeId')) as ServiceTypeId,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ChangeType')) as ChangeType,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ReUsed')) as ReUsed
+                FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCResourceModel/NOCResourceModel')))
+                WHERE TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) NOT IN
+                (
+                    /*****|Cac resource(Cap moi) bi cap phat trung phai duoc loai bo ra |*****/
+                    SELECT entraceData.CODE
+                    FROM
+                    (SELECT 
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ObjId')) as ObjID,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ContractC')) as ContractC,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Code')) as Code,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Name')) as Name,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind1')) as Kind1,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Kind2')) as Kind2,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeId')) as TypeId,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/TypeName')) as TypeName,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/Parent')) as Parent,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ServiceTypeId')) as ServiceTypeId,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ChangeType')) as ChangeType,
+                    TO_CHAR(extractvalue(column_value , '/NOCResourceModel/ReUsed')) as ReUsed
+                    FROM TABLE(XMLSequence(v_XMLType.extract('/ArrayOfNOCResourceModel/NOCResourceModel'))))
+                    entraceData
+                    INNER JOIN (SELECT ID,OBJID,CODE,NAME,KIND1,KIND2, TYPEID, PARENT, SERVICETYPEID, REUSED FROM FLL.NOCRESOURCE)
+                    existedData ON entraceData.CODE = existedData.CODE AND entraceData.Name = existedData.Name AND existedData.ReUsed = 0
+                    WHERE entraceData.ReUsed = 0
+                )
+    );
+    COMMIT;
+    v_insertResourceCount:=SQL%ROWCOUNT;
+    
+    
+    OPEN p_result
+    FOR 
+    SELECT v_updateResourceCount as updateCount, v_insertResourceCount as insertCount, v_deleteResourceCount as deleteCount
+    FROM dual;
+    
+    EXCEPTION WHEN NO_DATA_FOUND THEN CLOSE p_result;
+                  WHEN OTHERS THEN CLOSE p_result;
+    
+ END SU8W_NOCRES_ALLOCATE;
+
+END SU8_PKG_NOCRESOURCE;
